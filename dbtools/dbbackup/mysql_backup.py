@@ -111,7 +111,7 @@ def arg_parse():
     parse.add_argument('--throttle', type=int, default=500, help='number of IO operations per second, default 500')
     parse.add_argument('--backup-dir', help='target backup dir, default /backupnfs/backup/{$period}/mysql{$port}/{CURRENT_DATE}/db{$port}')
     parse.add_argument('--prepare', default=True,action='store_true', help='prepare backup in backup-dir')
-    parse.add_argument('--delay', default='8h', help='how far the slave should lag its master when use delay backup method, default 3h')
+    parse.add_argument('--delay', default='8h', help='how far the subordinate should lag its main when use delay backup method, default 3h')
     parse.add_argument('--dblog-status', default=True,action='store_true', help='log backup status info into metadb')
     options = parse.parse_args() 
     if options.method not in t_method:
@@ -331,7 +331,7 @@ def offline_check(params, current_date):
 # delaybackup instance check
 def delay_ins_check(port):
     try:
-        cmd = 'ps aux | grep -v grep | grep -v python | grep pt-slave-delay | grep %s' % port
+        cmd = 'ps aux | grep -v grep | grep -v python | grep pt-subordinate-delay | grep %s' % port
         ret = exec_cmd(cmd)
         if ret['status'] == 0:
             if ret['result']:
@@ -391,29 +391,29 @@ def mysql_connection_check(host, port, socket):
 def mysql_threads_check(host, port, socket):
     try:
         mysqlbase = mysqllib.MySQLBase(host, port, backup_user, backup_passwd, unix_socket=socket)
-        rows = mysqlbase.query('show slave status;')
+        rows = mysqlbase.query('show subordinate status;')
         if rows:
-            if rows[0]['Slave_IO_Running'].lower() == 'yes' and rows[0]['Slave_SQL_Running'].lower() == 'yes':
-                return {'status': 0, 'result': {'Slave_IO_Running': rows[0]['Slave_IO_Running'], 
-                        'Slave_SQL_Running': rows[0]['Slave_SQL_Running']}}
+            if rows[0]['Subordinate_IO_Running'].lower() == 'yes' and rows[0]['Subordinate_SQL_Running'].lower() == 'yes':
+                return {'status': 0, 'result': {'Subordinate_IO_Running': rows[0]['Subordinate_IO_Running'], 
+                        'Subordinate_SQL_Running': rows[0]['Subordinate_SQL_Running']}}
             else:
                 return {'status': -1, 'result': {'Last_Errno': rows[0]['Last_Errno'], 'Last_Error': rows[0]['Last_Error'],
-                        'Slave_IO_Running': rows[0]['Slave_IO_Running'], 'Slave_SQL_Running': rows[0]['Slave_SQL_Running']}}
+                        'Subordinate_IO_Running': rows[0]['Subordinate_IO_Running'], 'Subordinate_SQL_Running': rows[0]['Subordinate_SQL_Running']}}
     except Exception, e:
         raise e
 
-# check io and sql threads for starting slave
-def start_slave(host, port, socket):
+# check io and sql threads for starting subordinate
+def start_subordinate(host, port, socket):
     try:
         mysqlbase = mysqllib.MySQLBase(host, port, backup_user, backup_passwd, unix_socket=socket)
-        rows = mysqlbase.query('show slave status;')
+        rows = mysqlbase.query('show subordinate status;')
         if rows:
-            if rows[0]['Slave_IO_Running'].lower() == 'yes' and rows[0]['Slave_SQL_Running'].lower() == 'yes':
+            if rows[0]['Subordinate_IO_Running'].lower() == 'yes' and rows[0]['Subordinate_SQL_Running'].lower() == 'yes':
                 pass
             else:
-                mysqlbase.query('start slave;', fetch=False)
+                mysqlbase.query('start subordinate;', fetch=False)
                 time.sleep(5)
-                return mysqlbase.query('show slave status;')
+                return mysqlbase.query('show subordinate status;')
     except Exception, e:
         raise e
 
@@ -484,7 +484,7 @@ def xtra_backup(params, dblog_status):
             # xtrabackup 2.4.1 bug, cannot add parameter --throttle
             cmd += '--parallel=%d ' % params['parallel']
             cmd += "--user=%s --password='%s' " % (backup_user, backup_passwd)
-            cmd += '--slave-info --no-timestamp '
+            cmd += '--subordinate-info --no-timestamp '
             cmd += backup_dir
             bk_rt=backup_exec(cmd)
 	    if bk_rt['status']!=0:
@@ -565,16 +565,16 @@ def offline_backup(params, dblog_status):
         if mysql_start(check_ret['result']['basedir'], check_ret['result']['defaults-file'], params['host'], 
                        params['port'], check_ret['result']['socket']) is True:
             log('mysql start success')
-            start_slave_ret = start_slave(params['host'], params['port'], check_ret['result']['socket'])
-            if start_slave_ret:
-                if start_slave_ret[0]['Slave_IO_Running'].lower() == 'yes' and start_slave_ret[0]['Slave_SQL_Running'].lower() == 'yes':
-                    log('slave start... Slave_IO_Running: Yes, Slave_SQL_Running: Yes')
+            start_subordinate_ret = start_subordinate(params['host'], params['port'], check_ret['result']['socket'])
+            if start_subordinate_ret:
+                if start_subordinate_ret[0]['Subordinate_IO_Running'].lower() == 'yes' and start_subordinate_ret[0]['Subordinate_SQL_Running'].lower() == 'yes':
+                    log('subordinate start... Subordinate_IO_Running: Yes, Subordinate_SQL_Running: Yes')
                 else:
-                    log('slave start... Slave_IO_Running: %s, Slave_SQL_Running: %s, Last_Errno: %s, Last_Error: %s' 
-                        % (start_slave_ret[0]['Slave_IO_Running'], start_slave_ret[0]['Slave_SQL_Running'], 
-                        start_slave_ret[0]['Last_Errno'], start_slave_ret[0]['Last_Error']))
+                    log('subordinate start... Subordinate_IO_Running: %s, Subordinate_SQL_Running: %s, Last_Errno: %s, Last_Error: %s' 
+                        % (start_subordinate_ret[0]['Subordinate_IO_Running'], start_subordinate_ret[0]['Subordinate_SQL_Running'], 
+                        start_subordinate_ret[0]['Last_Errno'], start_subordinate_ret[0]['Last_Error']))
                     end_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                    extra_info = 'start slave failed'
+                    extra_info = 'start subordinate failed'
                     dblog_msg = {'port': params['port'], 'host': params['host'], 'backup_method': m_backup_method[params['method']],
                                  'backup_period': m_backup_period[params['period']], 'start_time': start_time, 'end_time': end_time,
                                  'backup_size': backup_size, 'back_status': BACKUP_FAIL, 'prepare_status': PREPARE_FAIL, 'extra_info': extra_info}
@@ -588,7 +588,7 @@ def offline_backup(params, dblog_status):
                          'backup_size': backup_size, 'back_status': BACKUP_FAIL, 'prepare_status': PREPARE_FAIL, 'extra_info': extra_info}
             dblog(dblog_msg, dblog_status)
 
-# use pt-slave-delay to do delay backup action
+# use pt-subordinate-delay to do delay backup action
 def delay_backup(params, dblog_status):
     try:
         log_file['filename'] = 'mysql_%d_%s_backup' % (params['port'], params['method'])
@@ -609,8 +609,8 @@ def delay_backup(params, dblog_status):
                     cmd = 'kill %s' % ins_check_ret['result']['pid']
                     exec_cmd(cmd)
         if exec_flag is True:
-            start_slave(params['host'], params['port'], check_ret['result']['socket'])
-            cmd = '/usr/bin/pt-slave-delay '
+            start_subordinate(params['host'], params['port'], check_ret['result']['socket'])
+            cmd = '/usr/bin/pt-subordinate-delay '
             cmd += '--defaults-file=%s ' % check_ret['result']['defaults-file']
             cmd += '--socket=%s ' % check_ret['result']['socket']
             cmd += '--user=%s --password=%s ' % (backup_user, backup_passwd)

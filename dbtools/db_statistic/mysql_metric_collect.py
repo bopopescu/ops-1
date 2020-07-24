@@ -178,7 +178,7 @@ def get_all_port():
 	    return rt
 		
     
-def get_slave_ip():
+def get_subordinate_ip():
 	return 0
 
 
@@ -194,7 +194,7 @@ def get_day():
     return time.strftime("%Y-%m-%d 00:00:00", time.localtime())
 
 def collect_metric_data(host,port):
-	mysql_metric_list={'datadir':'','log_slave_updates':0,'binlog_format':'',"read_only":0,'version':'',"tx_isolation":'','data_size':0,'log_size':0,'sql_slave_skip_counter':'','max_connections':0,'wait_timeout':0,'interactive_timeout':0,'gtid_mode':0,'db_role':0}
+	mysql_metric_list={'datadir':'','log_subordinate_updates':0,'binlog_format':'',"read_only":0,'version':'',"tx_isolation":'','data_size':0,'log_size':0,'sql_subordinate_skip_counter':'','max_connections':0,'wait_timeout':0,'interactive_timeout':0,'gtid_mode':0,'db_role':0}
 	print host
 	conn=get_conn(user=admin_user,passwd=admin_passwd,host=host,port=port)
 	conn=conn['value']
@@ -218,14 +218,14 @@ def collect_metric_data(host,port):
         log_rt=sys_cmd(host,log_cmd)
 	if log_rt['status']==0:
 		mysql_metric_list['log_size']=log_rt['result'].split()[0]
-	sql='show slave status;'
+	sql='show subordinate status;'
 	sql_rt=exec_sql(conn,sql)
 	rt={}
 	if sql_rt['status']==0:
 		if len(sql_rt['result'])>0:
 			sql_rt=sql_rt['result'][0]
-			io_running=sql_rt['Slave_IO_Running']
-			sql_running=sql_rt['Slave_SQL_Running']
+			io_running=sql_rt['Subordinate_IO_Running']
+			sql_running=sql_rt['Subordinate_SQL_Running']
 			if io_running=='Yes' or sql_running=='Yes':
 				mysql_metric_list['db_role']=1
 	rt={}
@@ -248,7 +248,7 @@ def main():
             temp_ops=per_com_rt['result']
 	    per_com_rt=temp_ops
             cur_time=get_day()
-            sql="replace into cmdb.mysql_metric_day (port,hostname,day_time,data_size,read_only,db_role,version,tx_isolation,skip_counter,max_connection,wait_timeout,interactive_timeout,gtid_mode,log_size,binlog_format,log_slave_updates) values (%d,'%s','%s',%d,'%s',%d,'%s','%s','%s',%d,%d,%d,'%s',%d,'%s','%s')"%(int(port),hostname,cur_time,int(per_com_rt['data_size']),per_com_rt['read_only'],int(per_com_rt['db_role']),per_com_rt['version'],per_com_rt['tx_isolation'],per_com_rt['sql_slave_skip_counter'],int(per_com_rt['max_connections']),int(per_com_rt['wait_timeout']),int(per_com_rt['interactive_timeout']),per_com_rt['gtid_mode'],int(per_com_rt['log_size']),per_com_rt['binlog_format'],per_com_rt['log_slave_updates'])
+            sql="replace into cmdb.mysql_metric_day (port,hostname,day_time,data_size,read_only,db_role,version,tx_isolation,skip_counter,max_connection,wait_timeout,interactive_timeout,gtid_mode,log_size,binlog_format,log_subordinate_updates) values (%d,'%s','%s',%d,'%s',%d,'%s','%s','%s',%d,%d,%d,'%s',%d,'%s','%s')"%(int(port),hostname,cur_time,int(per_com_rt['data_size']),per_com_rt['read_only'],int(per_com_rt['db_role']),per_com_rt['version'],per_com_rt['tx_isolation'],per_com_rt['sql_subordinate_skip_counter'],int(per_com_rt['max_connections']),int(per_com_rt['wait_timeout']),int(per_com_rt['interactive_timeout']),per_com_rt['gtid_mode'],int(per_com_rt['log_size']),per_com_rt['binlog_format'],per_com_rt['log_subordinate_updates'])
             conn=get_conn(user=admin_user,passwd=admin_passwd,host=admin_host,port=admin_port)
             conn=conn['value']
             conn.autocommit(1) 

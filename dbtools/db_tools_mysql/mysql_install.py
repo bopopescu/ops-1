@@ -118,7 +118,7 @@ def arg_parse():
     parse.add_argument('--host', '-H', default='',help='host ip')
     parse.add_argument('--engine', '-e', default='innodb',help='mysql engine')
     parse.add_argument('--tag', '-t', default='mysql',help='mysql tag')
-    parse.add_argument('--role', '-r', default='master',help='mysql tag')
+    parse.add_argument('--role', '-r', default='main',help='mysql tag')
     parse.add_argument('--datadir', '-d', default='data',help='mysql datadir')
     parse.add_argument('--buffersize', '-b', default='1G',help='buffer pool:10G')
     return parse, parse.parse_args()
@@ -217,7 +217,7 @@ def main():
 		t_rep_cmd="\"sed -i -r 's#(server-id).*#\\1 = %s#g' %s\""%(str(server_id),config_file)
 		sys_cmd(db_host,t_rep_cmd)
 		
-		if db_role == 'slave':
+		if db_role == 'subordinate':
 			t_rep_cmd="\"sed -i -r 's/(read_only).*/\\1 = %s/g' %s\""%('1',config_file)
 			sys_cmd(db_host,t_rep_cmd)
 		rt['status']=0
@@ -263,7 +263,7 @@ def main():
 		config.set("mysqld","innodb_buffer_pool_size",db_buffer)
 		config.set("mysqld","server-id",server_id)
 		
-		if db_role == 'slave':
+		if db_role == 'subordinate':
 			config.set("mysqld","read_only",1)
 		with open(config_file,'wb') as configfile:
 		    config.write(configfile)

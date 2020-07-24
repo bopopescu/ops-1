@@ -161,9 +161,9 @@ def main():
 		    conn=MySQLBase(admin_host,admin_port,admin_user,admin_passwd)
 		    if host!='127.0.0.1' or  len(hostname)>0:
 		    	    if len(hostname)==0 and check_ip(host):
-				sql="select port,case master when length(master)=0 then 'slave' when length(master)>0 then 'master' end as role,prod_info from cmdb.redis_ins where ip='%s';"%(host)
+				sql="select port,case main when length(main)=0 then 'subordinate' when length(main)>0 then 'main' end as role,prod_info from cmdb.redis_ins where ip='%s';"%(host)
 			    else:
-				sql="select port,case master when length(master)=0 then 'slave' when length(master)>0 then 'master' end as role,prod_info from cmdb.redis_ins where hostname='%s';"%(hostname)
+				sql="select port,case main when length(main)=0 then 'subordinate' when length(main)>0 then 'main' end as role,prod_info from cmdb.redis_ins where hostname='%s';"%(hostname)
 			    sql_rt=conn.query(sql)
 			    if len(sql_rt)==0:
 				rt={}	
@@ -173,7 +173,7 @@ def main():
 			    else:
 				port_info='\033[1;31;40m%s\n%s\t %5s \t %5s\t %10s\n'%('Port Info:','ID','Port','Role','Product')
 				for i in sql_rt:
-					if i['role']=='master':
+					if i['role']=='main':
 						color_info="\033[1;31;40m"
 					else:
 						color_info="\033[1;36;40m"
@@ -209,7 +209,7 @@ def main():
 		    	port=ports[int(port_idx)-1]
 	    if host==0:
 		    conn=MySQLBase(admin_host,admin_port,admin_user,admin_passwd)
-                    sql="select hostname,case master when length(master)=0 then 'slave' when length(master)>0 then 'master' end as role,prod_info from cmdb.redis_ins where port=%d;"%(int(port))
+                    sql="select hostname,case main when length(main)=0 then 'subordinate' when length(main)>0 then 'main' end as role,prod_info from cmdb.redis_ins where port=%d;"%(int(port))
                     sql_rt=conn.query(sql)
 		    if len(sql_rt)==0:
 			rt={}	
@@ -219,7 +219,7 @@ def main():
 		    else:
 			port_info='\033[1;31;40m%s\n%s\t %15s \t %15s \t %10s\t %10s\n'%('Host Info:','ID','Host','IP','Role','Product')
 			for i in sql_rt:
-				if i['role']=='master':
+				if i['role']=='main':
 					color_info="\033[1;31;40m"
 				else:
 					color_info="\033[1;36;40m"

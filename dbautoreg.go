@@ -43,7 +43,7 @@ var DB *sql.DB
 */
 func InitDB(port string) (ipArr []string, dbs []string, sum int, flag bool) {
 	//定义存储从库ip数组
-	var slavehosts []string
+	var subordinatehosts []string
 	//定义存储数据库名字数组
 	var schemas []string
 	//定义dump进程数和从库io进程数变量
@@ -68,7 +68,7 @@ func InitDB(port string) (ipArr []string, dbs []string, sum int, flag bool) {
 		_, err = DB.Query(" GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' IDENTIFIED BY PASSWORD 'xxxxx' WITH GRANT OPTION;")
 		_, err = DB.Query(" GRANT ALL PRIVILEGES ON *.* TO 'root'@'127.0.0.1' IDENTIFIED BY PASSWORD 'xxxx' WITH GRANT OPTION;")
 		//返回 变量，目前都为空，退出
-		return slavehosts, schemas, count, false
+		return subordinatehosts, schemas, count, false
 	}
 	//fmt.Printf("connect %s %s  sucess\n", ip, port)
 	//创建monitor_dba 和inception账号
@@ -89,11 +89,11 @@ func InitDB(port string) (ipArr []string, dbs []string, sum int, flag bool) {
 		//扫描host 数据并赋予host变量
 		err := rows.Scan(&host)
 		checkErr(err)
-		//如果host数据长度非0，也就是非空，去掉端口号，只取ip，并添加到slavehosts数组中
+		//如果host数据长度非0，也就是非空，去掉端口号，只取ip，并添加到subordinatehosts数组中
 		if len(host) != 0 {
 			//fmt.Println(port)
 			host = strings.Split(host, ":")[0]
-			slavehosts = append(slavehosts, host)
+			subordinatehosts = append(subordinatehosts, host)
 			//fmt.Println(host)
 
 		}
@@ -115,21 +115,21 @@ func InitDB(port string) (ipArr []string, dbs []string, sum int, flag bool) {
 		}
 	}
 
-	//获取dump进程或者slave io进程数
-	rows1, _ := DB.Query("select count(*)  from information_schema.processlist where COMMAND='Binlog Dump' or State like '%Slave has read all relay log%';")
+	//获取dump进程或者subordinate io进程数
+	rows1, _ := DB.Query("select count(*)  from information_schema.processlist where COMMAND='Binlog Dump' or State like '%Subordinate has read all relay log%';")
 	for rows1.Next() {
 		err := rows1.Scan(&count)
 		checkErr(err)
 
 	}
-	//fmt.Println(slavehosts,count)
+	//fmt.Println(subordinatehosts,count)
 
 	//返回从库ip数组 数据库名数组 和dump进程或者io进程数量
-	return slavehosts, schemas, count, true
+	return subordinatehosts, schemas, count, true
 }
 
 //把获取的从库ip数组，和数据库名数组，插入到远程元数据数据库
-func regDB(slaveIpArr []string, dbs []string, masterIp string, sum int, masterPort string) {
+func regDB(subordinateIpArr []string, dbs []string, mainIp string, sum int, mainPort string) {
 	//把数据库名数组转化为空格分隔的字符串
 	dbsName := strings.Join(dbs, " ")
 	fmt.Println(dbsName)
@@ -149,34 +149,34 @@ func regDB(slaveIpArr []string, dbs []string, masterIp string, sum int, masterPo
 	stmt, err := regDB.Prepare(`insert into mysql_asset (ip,port,mip,flag,dbs) values (?, ?, ?, ?, ?)  ON DUPLICATE KEY UPDATE  mip=values(mip),flag=values(flag)`)
 	checkErr(err)
 
-	//如果dump进程或者slave io进程数为0，说明是单实例。远程注册为单实例数据库flag标识为2
+	//如果dump进程或者subordinate io进程数为0，说明是单实例。远程注册为单实例数据库flag标识为2
 	if sum == 0 {
-		//_, err := stmt.Exec(masterIp, masterPort, "", "2", dbs)
-		_, err := stmt.Exec(masterIp, masterPort, "", "2", dbsName)
+		//_, err := stmt.Exec(mainIp, mainPort, "", "2", dbs)
+		_, err := stmt.Exec(mainIp, mainPort, "", "2", dbsName)
 		checkErr(err)
-		//fmt.Printf("insert into mysql_asset (ip,port,mip,flag,dbs) values (%s, %s, %s, %s)  ON DUPLICATE KEY UPDATE  mip=values(mip),flag=values(flag)\n",masterIp, masterPort, "", "2", dbs)
-		fmt.Printf("insert into mysql_asset (ip,port,mip,flag,dbs) values (%s, %s, %s, %s, %s)  ON DUPLICATE KEY UPDATE  mip=values(mip),flag=values(flag)\n", masterIp, masterPort, "", "2", dbsName)
+		//fmt.Printf("insert into mysql_asset (ip,port,mip,flag,dbs) values (%s, %s, %s, %s)  ON DUPLICATE KEY UPDATE  mip=values(mip),flag=values(flag)\n",mainIp, mainPort, "", "2", dbs)
+		fmt.Printf("insert into mysql_asset (ip,port,mip,flag,dbs) values (%s, %s, %s, %s, %s)  ON DUPLICATE KEY UPDATE  mip=values(mip),flag=values(flag)\n", mainIp, mainPort, "", "2", dbsName)
 
 	}
 
 	//如果从库ip非空，说明本机是主库,flag 为1
 	//远程注册本机+端口为主库ip
-	if len(slaveIpArr) != 0 {
-		//_, err := stmt.Exec(masterIp, masterPort, "", "1")
-		_, err := stmt.Exec(masterIp, masterPort, "", "1", dbsName)
+	if len(subordinateIpArr) != 0 {
+		//_, err := stmt.Exec(mainIp, mainPort, "", "1")
+		_, err := stmt.Exec(mainIp, mainPort, "", "1", dbsName)
 		checkErr(err)
-		fmt.Printf("insert into mysql_asset (ip,port,mip,flag,dbs) values (%s, %s, %s, %s, %s)  ON DUPLICATE KEY UPDATE  mip=values(mip),flag=values(flag)\n", masterIp, masterPort, "", "1", dbsName)
+		fmt.Printf("insert into mysql_asset (ip,port,mip,flag,dbs) values (%s, %s, %s, %s, %s)  ON DUPLICATE KEY UPDATE  mip=values(mip),flag=values(flag)\n", mainIp, mainPort, "", "1", dbsName)
 
 	}
 
 	//循环从库ip数组远程注册到元数据库 flag为0
 	//远程注册从库ip和端口到元数据库
-	for _, slaveIp := range slaveIpArr {
-		//fmt.Printf("insert into msyqlasset (ip,port,mip,flag) valuses (%s, %s, %s, %s)\n",slaveIp,masterPort,masterIp,"0")
-		//_, err1 := stmt.Exec(slaveIp, masterPort, masterIp, "0")
-		_, err1 := stmt.Exec(slaveIp, masterPort, masterIp, "0", dbsName)
+	for _, subordinateIp := range subordinateIpArr {
+		//fmt.Printf("insert into msyqlasset (ip,port,mip,flag) valuses (%s, %s, %s, %s)\n",subordinateIp,mainPort,mainIp,"0")
+		//_, err1 := stmt.Exec(subordinateIp, mainPort, mainIp, "0")
+		_, err1 := stmt.Exec(subordinateIp, mainPort, mainIp, "0", dbsName)
 		checkErr(err1)
-		fmt.Printf("insert into mysql_asset (ip,port,mip,flag,dbsName) values (%s, %s, %s, %s, %s)  ON DUPLICATE KEY UPDATE  mip=values(mip),flag=values(flag)\n", slaveIp, masterPort, masterIp, "0", dbsName)
+		fmt.Printf("insert into mysql_asset (ip,port,mip,flag,dbsName) values (%s, %s, %s, %s, %s)  ON DUPLICATE KEY UPDATE  mip=values(mip),flag=values(flag)\n", subordinateIp, mainPort, mainIp, "0", dbsName)
 
 	}
 
@@ -274,10 +274,10 @@ func main() {
 	fmt.Println(mysqlPortsArr, len(mysqlPortsArr))
 	//循环mysqld端口
 	for _, port := range mysqlPortsArr {
-		//获取数据库从库ip，数据库名字，dump进程或者slaveio进程数
-		if slaveIps, dbs, sum, ok := InitDB(port); ok {
+		//获取数据库从库ip，数据库名字，dump进程或者subordinateio进程数
+		if subordinateIps, dbs, sum, ok := InitDB(port); ok {
 			//注册数据库信息到远程元数据库
-			regDB(slaveIps, dbs, ipAddr, sum, port)
+			regDB(subordinateIps, dbs, ipAddr, sum, port)
 		}
 		fmt.Println(port)
 	}

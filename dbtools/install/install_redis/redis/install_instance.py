@@ -97,9 +97,9 @@ def install():
 	
 	if  config["DBPWD"].strip():
 		
-		os.system('sed -i "/^masterauth/d"  /etc/redis/'+config["DBPORT"]+'.conf')
+		os.system('sed -i "/^mainauth/d"  /etc/redis/'+config["DBPORT"]+'.conf')
 		os.system('sed -i "/^requirepass/d"  /etc/redis/'+config["DBPORT"]+'.conf')
-		os.system('sed -i "/^#masterauth/a\masterauth '+config["DBPWD"]+'"  /etc/redis/'+config["DBPORT"]+'.conf')
+		os.system('sed -i "/^#mainauth/a\mainauth '+config["DBPWD"]+'"  /etc/redis/'+config["DBPORT"]+'.conf')
 		os.system('sed -i "/^#requirepass/a\\requirepass  '+config["DBPWD"]+'"  /etc/redis/'+config["DBPORT"]+'.conf')
 	if config["DBMEMG"].strip():
 		os.system('sed -i  "s/^maxmemory .*/maxmemory '+config["DBMEMG"]+'Gb/g" /etc/redis/'+config["DBPORT"]+'.conf')

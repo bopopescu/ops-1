@@ -175,7 +175,7 @@ def get_all_port():
 	    return rt
 		
     
-def get_slave_ip():
+def get_subordinate_ip():
 	return 0
 
 

@@ -31,8 +31,8 @@ def usage():
 	print '	-p , --password	redis password ,default ""'
 	print '	-P , --port	redis DBPORT ,default 6379'
 	print '	-M , --memory	内存大小，单位g default 1'
-	print '	-m , --master   redis master'
-	print '	-s , --slave    redis slave '
+	print '	-m , --main   redis main'
+	print '	-s , --subordinate    redis subordinate '
 	print '	-f , --flag     不安装数据库只做主从复制配置'
 	sys.exit(1)
 
@@ -44,8 +44,8 @@ try:
 			'password=',
 			'port=',
 			'memeory=',
-			'master=',
-			'slave=',
+			'main=',
+			'subordinate=',
 			'flag'	
 		])
 except getopt.GetoptError, err:
@@ -65,9 +65,9 @@ for option,value in opts:
 		config["DBPORT"]=value
 	elif option in ['-M','--memory']:
 		config["DBMEMG"]=value
-	elif option in ['-m','--master']:
+	elif option in ['-m','--main']:
 		config["MASTER"]=value
-	elif option in ['-s','--slave']:
+	elif option in ['-s','--subordinate']:
 		config["SLAVE"]=value
 	elif option in ['-f','--flag']:
 		config["FLAG"]=1

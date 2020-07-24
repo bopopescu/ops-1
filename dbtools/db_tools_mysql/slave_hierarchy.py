@@ -1,6 +1,6 @@
 #!/usr/local/bin/python2.7
 
-#description:Find and print replication hierarchy tree of MySQL slaves.
+#description:Find and print replication hierarchy tree of MySQL subordinates.
 #version=1.0
 #modify:
 
@@ -75,23 +75,23 @@ def mysql_conn(user_host,user_name,user_pass,user_port,user_sql):
         return -1 
 
 
-#select binlog dump slave
-def slave_process(user_host,user_name,user_pass,user_port,user_sql="show processlist"):
-    slave_process=[]
+#select binlog dump subordinate
+def subordinate_process(user_host,user_name,user_pass,user_port,user_sql="show processlist"):
+    subordinate_process=[]
     results=mysql_conn(user_host,user_name,user_pass,user_port,user_sql)
     if results==-1:
         pass   
     else: 
         for row in results:
             if re.match(r".*Binlog Dump.*",row['Command']):
-                slave_host=row['Host'].split(':')
-                if slave_host[0]!="127.0.0.1" and slave_host[0]!=user_host:
-                     slave_process.append(slave_host[0])
-    return slave_process
+                subordinate_host=row['Host'].split(':')
+                if subordinate_host[0]!="127.0.0.1" and subordinate_host[0]!=user_host:
+                     subordinate_process.append(subordinate_host[0])
+    return subordinate_process
     
   
-#Find master is not Exception Handling  
-def select_master(user_host,user_name,user_pass,user_port,user_sql="show slave status",result_host=[]): 
+#Find main is not Exception Handling  
+def select_main(user_host,user_name,user_pass,user_port,user_sql="show subordinate status",result_host=[]): 
     results=mysql_conn(user_host,user_name,user_pass,user_port,user_sql)  
     print results
     if results==-1:
@@ -103,13 +103,13 @@ def select_master(user_host,user_name,user_pass,user_port,user_sql="show slave s
                 if len(result_host)>3:
                     if result_host[-1]==result_host[-3]:
                         break
-                select_master(row[1],user_name,user_pass,user_port)
+                select_main(row[1],user_name,user_pass,user_port)
         return result_host
 
        
-#master relay slave Recursive
+#main relay subordinate Recursive
 def mrs_Recursive(user_host,user_name,user_pass,user_port,second_host='',rank=1,space_null=' '):
-    results=mysql_conn(user_host,user_name,user_pass,user_port,user_sql="show slave status") 
+    results=mysql_conn(user_host,user_name,user_pass,user_port,user_sql="show subordinate status") 
     if results==-1:
         pass
     elif results:
@@ -118,52 +118,52 @@ def mrs_Recursive(user_host,user_name,user_pass,user_port,second_host='',rank=1,
             print space_null*rank,user_host,"(","%s,%s,%s,%s,%s,%s" % (row[1],row[5],str(row[21])[-3:],row[10],row[11],row[32]),")"
     else:
         print space_null*rank,user_host
-    relay_host=slave_process(user_host,user_name,user_pass,user_port)
+    relay_host=subordinate_process(user_host,user_name,user_pass,user_port)
     if second_host:
         relay_host.remove(second_host)
         second_host=''
     for host_item in relay_host:
         rank+=3  
-        slave_host=slave_process(host_item,user_name,user_pass,user_port)
-        if(slave_host):
+        subordinate_host=subordinate_process(host_item,user_name,user_pass,user_port)
+        if(subordinate_host):
             mrs_Recursive(host_item,user_name,user_pass,user_port,second_host,rank)
         else:
-            results=mysql_conn(host_item,user_name,user_pass,user_port,user_sql="show slave status")
+            results=mysql_conn(host_item,user_name,user_pass,user_port,user_sql="show subordinate status")
             if results==-1:
                 pass
             else:
                 for row in results:
-		    master_uuid=row['Master_UUID']
+		    main_uuid=row['Main_UUID']
 		    gtid_exec=row['Executed_Gtid_Set'].split('\n')
 		    for i in gtid_exec:
 		    	i=i.split(':')
-		    	if master_uuid==i[0]:
+		    	if main_uuid==i[0]:
 				gtid_exec=int(i[1].split('-')[-1].split(',')[0])
 		    if row['Retrieved_Gtid_Set']:
 		    	gtid_rec=row['Retrieved_Gtid_Set'].split(':')[1].split('-')[-1]
 		    	gtid_diff=int(gtid_rec)-gtid_exec
 		    else:
 			gtid_diff=0
-                    print space_null*rank,host_item,"(","%s,%s,%s,%s,%s,%s,%s" % (row['Master_Host'],row['Relay_Master_Log_File'],row['Exec_Master_Log_Pos'],gtid_diff,row['Slave_SQL_Running'],row['Slave_SQL_Running'],row['Seconds_Behind_Master']),")"
+                    print space_null*rank,host_item,"(","%s,%s,%s,%s,%s,%s,%s" % (row['Main_Host'],row['Relay_Main_Log_File'],row['Exec_Main_Log_Pos'],gtid_diff,row['Subordinate_SQL_Running'],row['Subordinate_SQL_Running'],row['Seconds_Behind_Main']),")"
         rank-=3  
 
 main()
-results=mysql_conn(user_host,user_name,user_pass,user_port,"show slave status")
+results=mysql_conn(user_host,user_name,user_pass,user_port,"show subordinate status")
 if results:
     for row in results:
         if row[10]=='Yes':
-             master_host=select_master(user_host,user_name,user_pass,user_port)
+             main_host=select_main(user_host,user_name,user_pass,user_port)
         else:
-             master_host=[]    
-             master_host.append(user_host)
+             main_host=[]    
+             main_host.append(user_host)
 else:
-     master_host=[]
-     master_host.append(user_host)
-if not master_host:
+     main_host=[]
+     main_host.append(user_host)
+if not main_host:
     usage()
     sys.exit()  
-if len(master_host)>2: 
-    mrs_Recursive(master_host[-1],user_name,user_pass,user_port,second_host=master_host[-2])
-    mrs_Recursive(master_host[-2],user_name,user_pass,user_port,second_host=master_host[-1])
+if len(main_host)>2: 
+    mrs_Recursive(main_host[-1],user_name,user_pass,user_port,second_host=main_host[-2])
+    mrs_Recursive(main_host[-2],user_name,user_pass,user_port,second_host=main_host[-1])
 else:
-    mrs_Recursive(master_host[-1],user_name,user_pass,user_port)
+    mrs_Recursive(main_host[-1],user_name,user_pass,user_port)

@@ -143,7 +143,7 @@ def get_redis_host():
 		
 		
     
-def get_slave_ip():
+def get_subordinate_ip():
 	return 0
 
 

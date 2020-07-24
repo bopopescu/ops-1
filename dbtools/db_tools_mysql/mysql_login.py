@@ -484,7 +484,7 @@ class MySQLQuery:
             close_connection(conn)
 
 
-    # Get slave hosts via show processlist
+    # Get subordinate hosts via show processlist
     def get_host_by_port(self, port):
         conn = None
         host = []
@@ -493,7 +493,7 @@ class MySQLQuery:
                [0][4][0]
         ret = connect(host=m_ip, port=int(port))
         if ret['errno']:
-            logger_u.error("connect(%s(master)) failed" % port)
+            logger_u.error("connect(%s(main)) failed" % port)
             return host
         host = [(m_ip,'m'), ]
         try:
@@ -503,7 +503,7 @@ class MySQLQuery:
             process = cursor.fetchall()
             #one processlist like this: (186285L, 'replica', 
             #'10.55.22.207:33550', None, 'Binlog Dump', 176698L,
-            #'Has sent all binlog to slave; waiting for binlog to be updated', None)
+            #'Has sent all binlog to subordinate; waiting for binlog to be updated', None)
             for p in process:
                 if p[4] == "Binlog Dump":
                     host.append((p[2].split(':')[0],'s'))
@@ -601,7 +601,7 @@ class MySQLQuery:
         finally:
             return retv
 
-    def show_slave_via_show_processlist(self, host, port, step, flag):
+    def show_subordinate_via_show_processlist(self, host, port, step, flag):
         # Already show
         if flag.has_key(host) and flag[host]:
             return
@@ -614,14 +614,14 @@ class MySQLQuery:
         try:
             conn = ret['value']
             cursor = conn.cursor(cursorclass=MySQLdb.cursors.DictCursor)
-            cursor.execute("show slave status")
+            cursor.execute("show subordinate status")
             repl = cursor.fetchall()
             llen = len(repl)
-            m_host = repl[0]['Master_Host'] if llen else 'None'
-            m_file = repl[0]['Master_Log_File'] if llen else 'None'
-            io_t = repl[0]['Slave_IO_Running'] if llen else 'No'
-            sql_t = repl[0]['Slave_SQL_Running'] if llen else 'No'
-            sbm = repl[0]['Seconds_Behind_Master'] if llen else 'NULL'
+            m_host = repl[0]['Main_Host'] if llen else 'None'
+            m_file = repl[0]['Main_Log_File'] if llen else 'None'
+            io_t = repl[0]['Subordinate_IO_Running'] if llen else 'No'
+            sql_t = repl[0]['Subordinate_SQL_Running'] if llen else 'No'
+            sbm = repl[0]['Seconds_Behind_Main'] if llen else 'NULL'
 
             output = (m_host, m_file, io_t, sql_t, sbm)
 
@@ -649,14 +649,14 @@ class MySQLQuery:
                 if p[4] == "Binlog Dump" and p[2]:
                     _host = p[2].split(':')[0]
                     _port = p[2].split(':')[1]
-                    # Avoid slave of mytrigger, mytriggerQ
+                    # Avoid subordinate of mytrigger, mytriggerQ
                     if _host == '127.0.0.1':
                         continue
                     flag[host] = True
-                    self.show_slave_via_show_processlist(_host, port, step + 1, flag)
+                    self.show_subordinate_via_show_processlist(_host, port, step + 1, flag)
         except MySQLdb.Error, err:
             logger_s.error("can't get hosts from port %s.>> %s" % port, str(err))
-            logger_u.error("%sget slave list failed" % (prefix, host, port))
+            logger_u.error("%sget subordinate list failed" % (prefix, host, port))
 
 
     def show_hierarchy(self, port):
@@ -712,7 +712,7 @@ class MySQLQuery:
             for tmp in mdblist:
                 flag[tmp] = True
             flag[host] = False
-            self.show_slave_via_show_processlist(host, port, 0, flag)
+            self.show_subordinate_via_show_processlist(host, port, 0, flag)
 
     def select(self, port, host, sql):
         # FIXME: show output tags with role, incident.

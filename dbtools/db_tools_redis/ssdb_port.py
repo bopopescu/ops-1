@@ -46,9 +46,9 @@ def ssdb_info(host,port):
 	rt=ssdb.read_response()
 	return rt
 
-def get_master(port):
+def get_main(port):
 	my_conn=MySQLBase(admin_host,admin_port,admin_user,admin_passwd)
-	sql="select hostname  from cmdb.ssdb_ins where port=%d and master='';"%(int(port))
+	sql="select hostname  from cmdb.ssdb_ins where port=%d and main='';"%(int(port))
 	rt=my_conn.query(sql)
 	return rt
 def main():
@@ -56,39 +56,39 @@ def main():
 	 port=opts.port
 	 #print port
 	 rt={}
-	 master_host=get_master(port) 
-	 if len(master_host)==0:
+	 main_host=get_main(port) 
+	 if len(main_host)==0:
 		rt['status']=-1
-		rt['result']='No Master'
+		rt['result']='No Main'
 		return rt
-	 master_host=master_host[0]['hostname']
-	 info_rt=ssdb_info(master_host,port)
-	 master_ip=socket.gethostbyname(master_host)
-	 print "\033[1;31;40m  %s"%(master_ip)
-	 cur_master_pos=0
+	 main_host=main_host[0]['hostname']
+	 info_rt=ssdb_info(main_host,port)
+	 main_ip=socket.gethostbyname(main_host)
+	 print "\033[1;31;40m  %s"%(main_ip)
+	 cur_main_pos=0
 	 for i in info_rt:
 	 	if re.match(r'repl_client.*',i):
 			a=i.split(':')[1].split(',')
 			if a[2].split('=')[1]=='mirror':
-				t_str="\033[1;33;40m\t\t%10s(%s,%s,%d)"%(a[0].split('=')[1],a[2].split('=')[1],a[3].split('=')[1],int(cur_master_pos)-int(a[4].split('=')[1]))
+				t_str="\033[1;33;40m\t\t%10s(%s,%s,%d)"%(a[0].split('=')[1],a[2].split('=')[1],a[3].split('=')[1],int(cur_main_pos)-int(a[4].split('=')[1]))
 				print t_str
 	 			info1_rt=ssdb_info(a[0].split('=')[1],port)
 				for j in info1_rt:	
 			 		if re.match(r'repl_client.*',j):
 						b=j.split(':')[1].split(',')
 						if b[2].split('=')[1]=='mirror':
-							t_str="\033[1;33;40m\t\t\t%10s(%s,%s,%d)"%(b[0].split('=')[1],b[2].split('=')[1],b[3].split('=')[1],int(cur1_master_pos)-int(b[4].split('=')[1]))
+							t_str="\033[1;33;40m\t\t\t%10s(%s,%s,%d)"%(b[0].split('=')[1],b[2].split('=')[1],b[3].split('=')[1],int(cur1_main_pos)-int(b[4].split('=')[1]))
 							print t_str
 						else:
-							t_str="\033[1;36;40m\t\t\t%10s(%s,%s,%d)"%(b[0].split('=')[1],b[2].split('=')[1],b[3].split('=')[1],int(cur1_master_pos)-int(b[4].split('=')[1]))
+							t_str="\033[1;36;40m\t\t\t%10s(%s,%s,%d)"%(b[0].split('=')[1],b[2].split('=')[1],b[3].split('=')[1],int(cur1_main_pos)-int(b[4].split('=')[1]))
 							print t_str
 					if re.search(r'.*binlog_max_seq.*',j):
-						cur1_master_pos=j.split(':')[-1]
+						cur1_main_pos=j.split(':')[-1]
 							
 			else:
-				t_str="\033[1;36;40m\t\t%10s(%s,%s,%d)"%(a[0].split('=')[1],a[2].split('=')[1],a[3].split('=')[1],int(cur_master_pos)-int(a[4].split('=')[1]))
+				t_str="\033[1;36;40m\t\t%10s(%s,%s,%d)"%(a[0].split('=')[1],a[2].split('=')[1],a[3].split('=')[1],int(cur_main_pos)-int(a[4].split('=')[1]))
 				print t_str
 		if re.search(r'.*binlog_max_seq.*',i):
-			cur_master_pos=i.split(':')[-1]
+			cur_main_pos=i.split(':')[-1]
          print "\033[0m"
 main()
